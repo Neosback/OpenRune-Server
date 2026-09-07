@@ -1,13 +1,17 @@
 package dev.openrune.pack
 
+import dev.openrune.DirectoryConstants
+import dev.openrune.cache.tools.cs2.PackCs2
 import dev.openrune.cache.tools.iftype.PackIfType
 import dev.openrune.cache.tools.tasks.CacheTask
 import dev.openrune.cache.tools.tasks.impl.PackDBTables
 import dev.openrune.cache.tools.tasks.impl.PackModels
-import dev.openrune.cache.tools.tasks.impl.PackSprites
 import dev.openrune.cache.tools.tasks.impl.defs.PackConfig
 import dev.openrune.definition.dbtables.DBTable
+import dev.openrune.gamevals.GameValProvider
 import dev.openrune.cache.tools.cs2.SymbolsCustomConflictStrip
+import dev.openrune.cache.tools.cs2.UnpackDefaultCs2
+import dev.openrune.cache.tools.tasks.impl.PackSprites
 import io.github.classgraph.ClassGraph
 import java.io.File
 
@@ -20,10 +24,14 @@ class PluginPacks(val projectRoot: File, val all: List<PluginPack>) {
 
     fun configDirectories(): List<File> = all.mapNotNull { it.configDirectory() }
 
+    fun validate() {
+        active.forEach { it.validate(projectRoot) }
+    }
+
     fun buildPackTasks(baseTables: List<DBTable>): List<CacheTask> {
         val tasks = mutableListOf(
             PackModels(File("../.data/raw-cache/models")),
-            PackConfig(File("../.data/raw-cache/server")),
+            PackConfig(File("../.data/raw-cache/")),
         )
 
         configDirectories().forEach { tasks += PackConfig(it) }
@@ -37,13 +45,14 @@ class PluginPacks(val projectRoot: File, val all: List<PluginPack>) {
 
         tasks += active.flatMap { it.extraTasks() }
 
+
         val interfaces = active.flatMap { it.interfaces() }
         if (interfaces.isNotEmpty()) {
             tasks += PackIfType(interfaces)
         }
 
-        //Enable this for cs2
-        //tasks += PackCs2(getCs2Location())
+        tasks += UnpackDefaultCs2(DirectoryConstants.CS2_PATH.toFile())
+        tasks += PackCs2(DirectoryConstants.CS2_PATH.toFile())
 
         val tables = baseTables + active.flatMap { it.dbTables() }
         tasks += PackDBTables(tables)
@@ -51,24 +60,26 @@ class PluginPacks(val projectRoot: File, val all: List<PluginPack>) {
         return tasks
     }
 
-    fun syncCs2(cs2Root: File) {
-        if (all.none { it.cs2Directory() != null }) {
+    fun syncCs2(cs2Root: File, gamevals: GameValProvider? = null) {
+        if (gamevals == null && all.none { it.cs2Directory() != null }) {
             return
         }
 
         cs2Root.mkdirs()
-        val customRoot = File(cs2Root, "custom").also { it.mkdirs() }
-        val symbolsCustom = File(cs2Root, "symbols_custom").also { it.mkdirs() }
 
-        pruneStaleCs2(customRoot, symbolsCustom)
+        val customRoot = File(cs2Root, "custom")
+        val symbolsCustom = File(cs2Root, "symbols_custom")
+        customRoot.deleteRecursively()
+        symbolsCustom.deleteRecursively()
+        customRoot.mkdirs()
+        symbolsCustom.mkdirs()
+
+        // Emit first so hand-written pack symbol files take precedence on overlap.
+        gamevals?.let { writeCustomGamevalSymbols(symbolsCustom, it) }
 
         for (pack in active) {
             val source = pack.cs2Directory() ?: continue
-            val scriptDest =
-                File(customRoot, nameOf(pack)).also {
-                    it.deleteRecursively()
-                    it.mkdirs()
-                }
+            val scriptDest = File(customRoot, nameOf(pack)).also { it.mkdirs() }
 
             copyScripts(source, scriptDest)
             symbolFiles(source).forEach { sym ->
@@ -79,24 +90,26 @@ class PluginPacks(val projectRoot: File, val all: List<PluginPack>) {
         SymbolsCustomConflictStrip.strip(cs2Root)
     }
 
-    private fun pruneStaleCs2(customRoot: File, symbolsCustom: File) {
-        val activeNames = active.map { nameOf(it) }.toSet()
-        val allNames = all.map { nameOf(it) }.toSet()
+    /**
+     * Custom gamevals (ids above the OSRS cache max for their table) are owned by this project, not
+     * by the cache. `SymDumper` re-emits them into `symbols/` on every build and only ever appends
+     * to some of those files, so a renumbered gameval leaves the previous id behind and Neptune
+     * fails with a duplicate symbol name. Staging them under `symbols_custom/` - which is wiped and
+     * rebuilt each run - gives them a single authoritative home, and lets
+     * [SymbolsCustomConflictStrip] drop every stale copy from `symbols/`.
+     */
+    private fun writeCustomGamevalSymbols(symbolsCustom: File, gamevals: GameValProvider) {
+        for ((table, symbolFile) in SYMBOL_FILES) {
+            val entries = gamevals.mappings[table] ?: continue
+            val maxBaseId = gamevals.maxBaseID[table] ?: -1
 
-        customRoot.listFiles()?.forEach { child ->
-            val name = child.name.lowercase()
-            if (child.isDirectory && name in allNames && name !in activeNames) {
-                child.deleteRecursively()
-            }
-        }
-        File(customRoot, "_plugins").takeIf { it.exists() }?.deleteRecursively()
-        File(symbolsCustom, "_plugins").takeIf { it.exists() }?.deleteRecursively()
+            val custom =
+                entries
+                    .filterValues { it > maxBaseId }
+                    .map { (key, id) -> id.toString() to key.removePrefix("$table.") }
+                    .sortedBy { it.first.toIntOrNull() ?: 0 }
 
-        for (pack in all) {
-            val source = pack.cs2Directory() ?: continue
-            symbolFiles(source).forEach { sym ->
-                stripSymbolLines(File(symbolsCustom, sym.name), readSymbolLines(sym))
-            }
+            mergeSymbolLines(File(symbolsCustom, symbolFile), custom)
         }
     }
 
@@ -104,6 +117,25 @@ class PluginPacks(val projectRoot: File, val all: List<PluginPack>) {
         private val SCANNED_PACKAGES = arrayOf("dev.openrune.pack", "org.rsmod.content")
 
         private val SYMBOL_LINE = Regex("""^\s*(\S+)\s+(.+?)\s*$""")
+
+        /**
+         * Gameval table -> Neptune symbol file. Only tables whose symbol lines are plain
+         * `id<tab>name` with a plain integer id are listed. Left to their existing sources:
+         * `clientscript` (needs the `[trigger,name]` form and is supplied by packs), `dbcol` and
+         * `param` (trailing type column), and `component` (packed `iface:comp` ids on both fields).
+         */
+        private val SYMBOL_FILES = mapOf(
+            "dbrow" to "dbrow.sym",
+            "dbtable" to "dbtable.sym",
+            "interface" to "interface.sym",
+            "inv" to "inv.sym",
+            "loc" to "loc.sym",
+            "npc" to "npc.sym",
+            "obj" to "obj.sym",
+            "seq" to "seq.sym",
+            "varbit" to "varbit.sym",
+            "varp" to "varp.sym",
+        )
 
         fun discover(projectRoot: File): PluginPacks = PluginPacks(projectRoot, loadPacks())
 
