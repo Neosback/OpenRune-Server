@@ -53,6 +53,7 @@ dependencies {
     implementation(projects.server.logging)
     implementation(projects.server.services)
     implementation(projects.server.shared)
+    implementation(projects.studio)
 }
 
 tasks.named<JavaExec>("run") {
