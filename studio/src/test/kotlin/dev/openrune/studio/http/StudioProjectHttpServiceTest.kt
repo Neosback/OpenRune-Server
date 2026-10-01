@@ -47,6 +47,29 @@ class StudioProjectHttpServiceTest {
         }
 
     @Test
+    fun `startup failure releases the listener and resets service state`() {
+        val blocker = tempDir.resolve("not-a-directory")
+        Files.writeString(blocker, "blocked")
+        val service =
+            StudioProjectHttpService(
+                StudioProjectHttpConfig(
+                    enabled = true,
+                    port = 0,
+                    projectRoot = tempDir.resolve("projects"),
+                    sessionFile = blocker.resolve("session.json"),
+                    token = "startup-failure-token",
+                ),
+            )
+
+        org.junit.jupiter.api.assertThrows<Exception> {
+            runBlocking { service.startup() }
+        }
+
+        assertEquals(null, service.endpoint)
+        runBlocking { service.shutdown() }
+    }
+
+    @Test
     fun `health is loopback readable but projects require the session token`() =
         withService { service, config ->
             val health = request(service, "/health")
