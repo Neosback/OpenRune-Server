@@ -140,7 +140,10 @@ public object StudioFormatV1Codec {
         } else {
             mutations.forEachIndexed { index, mutation ->
                 val localIssues = mutableListOf<StudioFormatIssue>()
-                if (validateMutation(mutation, "$path.mutations[$index]", localIssues)) {
+                if (
+                    validateMutation(mutation, "$path.mutations[$index]", localIssues) &&
+                    localIssues.isEmpty()
+                ) {
                     validMutations += mutation as ObjectNode
                 }
                 issues += localIssues
@@ -354,7 +357,7 @@ public object StudioFormatV1Codec {
     private fun parseTileSnapshot(node: ObjectNode): EditTileSnapshotV1 =
         EditTileSnapshotV1(
             h = node.optionalLong("h"),
-            hl = node["hl"]?.map(JsonNode::longValue),
+            hl = node["hl"]?.map { it.longValue() },
             u = node.optionalLong("u"),
             o = node.optionalLong("o"),
             s = node.optionalLong("s"),
@@ -454,7 +457,7 @@ public object StudioFormatV1Codec {
         mapper.createObjectNode().apply {
             snapshot.h?.let { put("h", it) }
             snapshot.hl?.let { values ->
-                set<ArrayNode>("hl", mapper.createArrayNode().apply { values.forEach(::add) })
+                set<ArrayNode>("hl", mapper.createArrayNode().apply { values.forEach { add(it) } })
             }
             snapshot.u?.let { put("u", it) }
             snapshot.o?.let { put("o", it) }
