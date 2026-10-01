@@ -117,6 +117,9 @@ public class StudioProjectHttpService(
         } catch (throwable: Throwable) {
             httpServer.stop(0)
             httpExecutor.shutdownNow()
+            server = null
+            executor = null
+            sessionDescriptorWritten = false
             throw throwable
         }
     }
@@ -234,7 +237,13 @@ public class StudioProjectHttpService(
             return
         }
 
-        val id = decodePathSegment(rawId)
+        val id =
+            try {
+                decodePathSegment(rawId)
+            } catch (_: IllegalArgumentException) {
+                sendError(exchange, 400, "invalid_path", "Project id path segment is malformed.")
+                return
+            }
         if (isExport) {
             if (!exchange.requestMethod.equals("GET", ignoreCase = true)) {
                 methodNotAllowed(exchange, "GET")
