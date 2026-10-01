@@ -99,6 +99,14 @@ Note: RSprox for Private Servers only works currently on Windows and Linux, NOT 
 
 The [OpenRune-Developer-Tools](https://github.com/OpenRune/OpenRune-Developer-Tools) client plugin runs a local MCP server (`http://127.0.0.1:7780/mcp`) so AI agents like Claude can test server content in a live client: walk NPC dialogue trees, screenshot and diff interfaces, read varbits/clientscript history, interact with NPCs/objects/items and wait on game conditions. A live dashboard at `http://127.0.0.1:7780/` shows every call the AI makes, with results and screenshots. Setup, example prompts and verification flows are documented in [AGENTS.md](AGENTS.md).
 
+## 🛠️ Content Studio backend
+
+The `:studio` module provides the versioned Content Studio project contract,
+filesystem project persistence, and an opt-in loopback project API.
+
+The service is disabled by default. See [studio/README.md](studio/README.md) for
+the current scope, security model, configuration, and API routes.
+
 ## 📦 Release builds
 
 CI can produce a self-contained `openrune-server-release.zip` with `server.jar`, `game.yml`, and compiled `.data/`. Pushes to `production` publish automatically; other branches can be built manually from **Actions → Release Server**.
