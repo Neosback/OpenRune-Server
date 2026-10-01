@@ -79,14 +79,7 @@ public class StudioProjectHttpService(
     private var server: HttpServer? = null
     private var executor: ExecutorService? = null
 
-    public constructor() :
-        this(
-            config = StudioProjectHttpConfig.fromEnvironment(),
-            store =
-                FileSystemStudioProjectStore(
-                    StudioProjectHttpConfig.fromEnvironment().projectRoot,
-                ),
-        )
+    public constructor() : this(StudioProjectHttpConfig.fromEnvironment())
 
     public constructor(config: StudioProjectHttpConfig) :
         this(
@@ -362,7 +355,7 @@ public class StudioProjectHttpService(
                 endpoint = currentEndpoint.toString(),
                 token = config.token,
             )
-        config.sessionFile.parent?.let(Files::createDirectories)
+        config.sessionFile.parent?.let { Files.createDirectories(it) }
         val temp =
             Files.createTempFile(
                 config.sessionFile.parent ?: Paths.get("."),
