@@ -2,6 +2,7 @@ package dev.openrune.studio.http
 
 import dev.openrune.studio.format.ProjectV1
 import dev.openrune.studio.format.StudioFormatV1Codec
+import java.net.Socket
 import java.net.URI
 import java.net.URLEncoder
 import java.net.http.HttpClient
@@ -59,6 +60,25 @@ class StudioProjectHttpServiceTest {
             val authorized = request(service, "/projects", token = config.token)
             assertEquals(200, authorized.statusCode())
             assertEquals("[]", authorized.body())
+        }
+
+    @Test
+    fun `non-loopback Host headers are rejected before routing`() =
+        withService { service, _ ->
+            val endpoint = requireNotNull(service.endpoint)
+            Socket("127.0.0.1", endpoint.port).use { socket ->
+                socket.soTimeout = 2_000
+                val request =
+                    "GET /studio/v1/health HTTP/1.1\r\n" +
+                        "Host: evil.example\r\n" +
+                        "Connection: close\r\n\r\n"
+                socket.getOutputStream().use { output ->
+                    output.write(request.toByteArray(StandardCharsets.US_ASCII))
+                    output.flush()
+                }
+                val statusLine = socket.getInputStream().bufferedReader().readLine()
+                assertTrue(statusLine.contains(" 403 "))
+            }
         }
 
     @Test
