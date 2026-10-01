@@ -7,4 +7,6 @@ plugins {
 dependencies {
     implementation(libs.jackson.databind)
     implementation(libs.jackson.module.kotlin)
+    implementation(libs.kotlin.coroutines.core)
+    implementation(projects.server.services)
 }
