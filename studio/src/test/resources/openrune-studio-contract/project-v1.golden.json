@@ -1,0 +1,22 @@
+{
+  "format": "openrune.project",
+  "version": 1,
+  "id": "golden-project-v1",
+  "name": "Golden project",
+  "createdAt": 1700000000000,
+  "updatedAt": 1700000000100,
+  "base": {
+    "kind": "cache",
+    "game": "oldschool",
+    "revision": 225,
+    "name": "OSRS revision 225",
+    "fingerprint": "fixture:osrs-225"
+  },
+  "edits": {
+    "format": "openrune.edit-batch",
+    "version": 1,
+    "id": "golden-project-v1:edits",
+    "createdAt": 1700000000000,
+    "transactions": []
+  }
+}
