@@ -1,0 +1,61 @@
+{
+  "format": "openrune.edit-batch",
+  "version": 1,
+  "id": "golden-map-edit-v1",
+  "createdAt": 1700000000100,
+  "transactions": [
+    {
+      "id": "tx-1",
+      "label": "Paste region",
+      "source": "region-stamp",
+      "timestamp": 1700000000000,
+      "mutations": [
+        {
+          "kind": "map.tile",
+          "mapX": 50,
+          "mapY": 51,
+          "level": 0,
+          "localX": 2,
+          "localY": 3,
+          "before": {
+            "h": 100,
+            "u": 1
+          },
+          "after": {
+            "h": 120,
+            "u": 2
+          }
+        },
+        {
+          "kind": "map.objects",
+          "mapX": 50,
+          "mapY": 51,
+          "level": 0,
+          "before": [
+            {
+              "id": 100,
+              "flags": 2,
+              "worldX": 3202,
+              "worldY": 3267
+            }
+          ],
+          "after": [
+            {
+              "id": 200,
+              "flags": 66,
+              "worldX": 3204,
+              "worldY": 3269
+            }
+          ]
+        }
+      ],
+      "affectedMaps": [
+        {
+          "x": 50,
+          "y": 51
+        }
+      ],
+      "tileCount": 1
+    }
+  ]
+}
