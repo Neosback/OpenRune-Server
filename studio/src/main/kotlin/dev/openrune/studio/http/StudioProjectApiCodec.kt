@@ -34,7 +34,7 @@ public object StudioProjectApiCodec {
 
         val id =
             if (objectNode.has("id")) {
-                requireText(objectNode["id"], "id", nonEmpty = true)
+                requireText(objectNode["id"], "id").trim().ifEmpty { null }
             } else {
                 null
             }
