@@ -137,6 +137,8 @@ public class FileSystemStudioProjectStore(
             }
         } catch (_: StudioFormatException) {
             null
+        } catch (_: IOException) {
+            null
         }
 
     private fun readStoredProject(id: String): ProjectV1? {
