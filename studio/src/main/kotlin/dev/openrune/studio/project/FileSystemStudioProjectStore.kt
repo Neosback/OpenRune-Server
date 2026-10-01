@@ -232,22 +232,22 @@ public class FileSystemStudioProjectStore(
                 channel.force(true)
             }
 
-            val atomicOptions =
-                if (replaceExisting) {
-                    arrayOf(StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
-                } else {
-                    arrayOf(StandardCopyOption.ATOMIC_MOVE)
+            if (replaceExisting) {
+                try {
+                    Files.move(
+                        temp,
+                        target,
+                        StandardCopyOption.ATOMIC_MOVE,
+                        StandardCopyOption.REPLACE_EXISTING,
+                    )
+                } catch (_: AtomicMoveNotSupportedException) {
+                    Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING)
                 }
-            try {
-                Files.move(temp, target, *atomicOptions)
-            } catch (_: AtomicMoveNotSupportedException) {
-                val fallbackOptions =
-                    if (replaceExisting) {
-                        arrayOf(StandardCopyOption.REPLACE_EXISTING)
-                    } else {
-                        emptyArray()
-                    }
-                Files.move(temp, target, *fallbackOptions)
+            } else {
+                // Deliberately omit ATOMIC_MOVE here. The JDK permits implementation-specific
+                // behavior when an atomic move targets an existing file. A normal same-filesystem
+                // move preserves CREATE/import conflict semantics across processes.
+                Files.move(temp, target)
             }
         } finally {
             Files.deleteIfExists(temp)
