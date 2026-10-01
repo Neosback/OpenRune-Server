@@ -78,6 +78,7 @@ public class StudioProjectHttpService(
 ) : Service {
     private var server: HttpServer? = null
     private var executor: ExecutorService? = null
+    private var sessionDescriptorWritten = false
 
     public constructor() : this(StudioProjectHttpConfig.fromEnvironment())
 
@@ -112,6 +113,7 @@ public class StudioProjectHttpService(
             server = httpServer
             executor = httpExecutor
             writeSessionDescriptor()
+            sessionDescriptorWritten = true
         } catch (throwable: Throwable) {
             httpServer.stop(0)
             httpExecutor.shutdownNow()
@@ -124,7 +126,17 @@ public class StudioProjectHttpService(
         server = null
         executor?.shutdownNow()
         executor = null
-        runCatching { Files.deleteIfExists(config.sessionFile) }
+        if (sessionDescriptorWritten) {
+            runCatching {
+                if (
+                    Files.exists(config.sessionFile) &&
+                    Files.readString(config.sessionFile).contains(config.token)
+                ) {
+                    Files.deleteIfExists(config.sessionFile)
+                }
+            }
+            sessionDescriptorWritten = false
+        }
     }
 
     private fun handle(exchange: HttpExchange) {
