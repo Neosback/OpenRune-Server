@@ -62,6 +62,19 @@ class StudioFormatV1ParityTest {
     }
 
     @Test
+    fun `malformed mutation reports its field instead of entering derived metadata`() {
+        val root = mapper.readTree(fixture("edit-format-v1.golden.json")) as ObjectNode
+        val mutation = root["transactions"][0]["mutations"][0] as ObjectNode
+        mutation.remove("mapX")
+
+        val issues = StudioFormatV1Codec.validateEditBatch(root)
+
+        assertTrue(
+            issues.any { it.path == "$.transactions[0].mutations[0].mapX" },
+        )
+    }
+
+    @Test
     fun `edit decoder rejects unsupported version malformed json and unsafe integer`() {
         val unsupported = mapper.readTree(fixture("edit-format-v1.golden.json")) as ObjectNode
         unsupported.put("version", 2)
