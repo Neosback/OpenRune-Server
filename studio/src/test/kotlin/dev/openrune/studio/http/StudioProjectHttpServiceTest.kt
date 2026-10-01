@@ -72,10 +72,9 @@ class StudioProjectHttpServiceTest {
                     "GET /studio/v1/health HTTP/1.1\r\n" +
                         "Host: evil.example\r\n" +
                         "Connection: close\r\n\r\n"
-                socket.getOutputStream().use { output ->
-                    output.write(request.toByteArray(StandardCharsets.US_ASCII))
-                    output.flush()
-                }
+                val output = socket.getOutputStream()
+                output.write(request.toByteArray(StandardCharsets.US_ASCII))
+                output.flush()
                 val statusLine = socket.getInputStream().bufferedReader().readLine()
                 assertTrue(statusLine.contains(" 403 "))
             }
